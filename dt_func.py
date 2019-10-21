@@ -2,58 +2,22 @@
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
-import matplotlib.pyplot as plt 
-import seaborn as sns
-from sklearn import preprocessing
-# %matplotlib inline
 
-from tqdm import tqdm
 import random
-from pprint import pprint
-
-#from sklearn.model_selection import train_test_split
-#from sklearn import metrics
-
-### LOAD & PREP DATA ###
-# think about splitting to smaller set for original testing
-
-data = pd.read_csv("unsw_10_test.csv", delimiter=',')
-data = data.drop(['pkSeqID', 'category', 'subcategory'], axis=1)
-data = data.rename(columns={'attack': 'label'})
-#data = data.drop(['pkSeqID', 'attack', 'subcategory'], axis=1)
-#data = data.rename(columns={'category': 'label'})
 
 
-print(data.head())
-print('------------------------------------------------------------')
-#print(data.info())
+def train_test_split(df, test_size):
+    
+    if isinstance(test_size, float):
+        test_size = round(test_size * len(df))
 
-# Encoding -> may leave out, requires preprossing import
+    i = df.index.tolist()
+    test_ID = random.sample(population=i, k=test_size)
 
-print("encoding...")
-enc = preprocessing.LabelEncoder()
-# data = data.apply(enc.fit_transform)
-list_of_cols_to_encode = ['proto', 'saddr', 'sport', 'daddr', 'dport']
-data[list_of_cols_to_encode] = data[list_of_cols_to_encode].apply(enc.fit_transform)
-
-print(data.head())
-print(data.dtypes)
-
-print('Splitting data for Training-Testing...')
-random.seed(0)
-ID = data.index.tolist()
-test_size = round(0.30 * len(data)) # 30% of random data for testing
-test_ID = random.sample(population=ID, k=test_size)
-
-test = data.loc[test_ID]
-train = data.drop(test_ID)
-
-
-
-### HELPER FUNCTIONS ###
-# turns into numpy 2D array (goes much faster this way)
-tnV = train.values
-#print(tnV[:5])
+    test = df.loc[test_ID]
+    train = df.drop(test_ID)
+    
+    return train, test
 
 # checks if data is pure -> just 1 label 
 def check_purity(df):
@@ -64,10 +28,6 @@ def check_purity(df):
 	else:
 		return False
 
-# debug >= 0 -> False | > 0 -> True
-#print(check_purity(data[data.label >= 0].values))
-#print(len(data[data.label == 0].values))
-#print(len(data[data.label == 1].values))
 
 # Classify 
 def classify_data(df):
@@ -78,17 +38,19 @@ def classify_data(df):
 	classification = unique[index]
 	return classification
 
-#print(classify_data(data[data.label >= 1].values))
-
 
 # Potential splits -> returns list of splits
-
-def get_potential_splits(df):
+# random variable used in random forest
+def get_potential_splits(df, random):
 
 	potential_splits = {}
 	_, n_col = df.shape
+	col_ID = list(range(n_col - 1))
+
+	if random:
+		col_ID = random.sample(population=col_ID, k=random)
 	
-	for i in range(n_col - 1):
+	for i in col_ID:
 		potential_splits[i] = []
 		val = df[:, i]
 		unique = np.unique(val)
@@ -159,8 +121,9 @@ def best_split(data, potential_splits):
 
 ### DECISION TREE ALGRORITHM ###
 # if label == 1 it is an attack , if label == 0 it is not an attack
+# random variable used for random forest
 # may look at type of attack to give more sub-trees
-def decision_tree(df, count=0, min_samples=2, max_depth=5):
+def decision_tree(df, count=0, min_samples=2, max_depth=5, random=None):
 
 	# df = non-numpy | data = numpy
 	if count == 0: 
@@ -179,7 +142,7 @@ def decision_tree(df, count=0, min_samples=2, max_depth=5):
 	# recursive - if data not pure
 	else:
 		count += 1
-		potential_splits = get_potential_splits(data)
+		potential_splits = get_potential_splits(data, random)
 		split_col, split_val = best_split(data, potential_splits)
 		data_below, data_above = split_data(data, split_col, split_val)
 
@@ -189,8 +152,8 @@ def decision_tree(df, count=0, min_samples=2, max_depth=5):
 		sub_tree = {question: []}
 
 		# find answer to question
-		yes_ans = decision_tree(data_below, count, min_samples, max_depth)
-		no_ans = decision_tree(data_above, count, min_samples, max_depth)
+		yes_ans = decision_tree(data_below, count, min_samples, max_depth, random)
+		no_ans = decision_tree(data_above, count, min_samples, max_depth, random)
 
 		if yes_ans == no_ans:
 			sub_tree = yes_ans
@@ -199,9 +162,6 @@ def decision_tree(df, count=0, min_samples=2, max_depth=5):
 			sub_tree[question].append(no_ans)
 		return sub_tree
 
-
-tree = decision_tree(train)
-pprint(tree)
 
 ### CLASSIFICATION & ACCURACY ###
 
@@ -224,19 +184,6 @@ def classify(example, tree):
 		# recursion 
 		return classify(example, ans)
 
-example = test.iloc[2]
-classi = classify(example, tree)
-print(classi) 
-
-print()
-print('degbug stuff below')
-print()
-
-print(test.iloc[0])
-print('1-')
-print(list(tree.keys())[0])
-print('2-')
-print()
 
 # df = non-numpy data
 def calc_acc(df, tree):
@@ -247,7 +194,3 @@ def calc_acc(df, tree):
 	accuracy = df.classification_correct.mean()
 
 	return accuracy
-
-
-classacc = calc_acc(test, tree)
-print('accuracy:', classacc) 
