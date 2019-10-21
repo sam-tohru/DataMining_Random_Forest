@@ -41,26 +41,28 @@ def classify_data(df):
 
 # Potential splits -> returns list of splits
 # random variable used in random forest
-def get_potential_splits(df, random):
+def get_potential_splits(df, random_n):
 
 	potential_splits = {}
 	_, n_col = df.shape
 	col_ID = list(range(n_col - 1))
 
-	if random:
-		col_ID = random.sample(population=col_ID, k=random)
-	
+	if random_n and random_n <= len(col_ID):
+		col_ID = random.sample(population=col_ID, k=random_n)
+
 	for i in col_ID:
 		potential_splits[i] = []
 		val = df[:, i]
 		unique = np.unique(val)
 
-		for j in range(len(unique)):
-			if j != 0:
-				curr = unique[j]
-				prev = unique[j - 1]
-				potential_split = (curr + prev) / 2
-				potential_splits[i].append(potential_split)
+		potential_splits[i] = unique
+
+		# for j in range(len(unique)):
+		# 	if j != 0:
+		# 		curr = unique[j]
+		# 		prev = unique[j - 1]
+		# 		potential_split = (curr + prev) / 2
+		# 		potential_splits[i].append(potential_split)
 
 	return potential_splits
 
@@ -120,7 +122,7 @@ def best_split(data, potential_splits):
 
 
 ### DECISION TREE ALGRORITHM ###
-# if label == 1 it is an attack , if label == 0 it is not an attack
+
 # random variable used for random forest
 # may look at type of attack to give more sub-trees
 def decision_tree(df, count=0, min_samples=2, max_depth=5, random=None):
@@ -146,6 +148,11 @@ def decision_tree(df, count=0, min_samples=2, max_depth=5, random=None):
 		split_col, split_val = best_split(data, potential_splits)
 		data_below, data_above = split_data(data, split_col, split_val)
 
+		# check for empty 
+		if (len(data_below) == 0) or (len(data_above) == 0):
+			classification = classify_data(data)
+			return classification			
+
 		# sub_tree
 		features = COL_NAMES[split_col]
 		question = "{} <= {}".format(features, split_val)
@@ -168,14 +175,17 @@ def decision_tree(df, count=0, min_samples=2, max_depth=5, random=None):
 def classify(example, tree):
 
 	question = list(tree.keys())[0]
+	# print(question)
 	feature, comparison, value = question.split()
 
 	# ask question
 	# float(value) as feature is string
 	if example[feature] <= float(value):
+	# if str(example[feature]) == value:
 		ans = tree[question][0]
 	else:
 		ans = tree[question][1]
+
 
 	# base case
 	if not isinstance(ans, dict):
@@ -194,3 +204,4 @@ def calc_acc(df, tree):
 	accuracy = df.classification_correct.mean()
 
 	return accuracy
+
