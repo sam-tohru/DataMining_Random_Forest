@@ -175,13 +175,14 @@ def decision_tree(df, count=0, min_samples=2, max_depth=5, random=None):
 def classify(example, tree):
 
 	question = list(tree.keys())[0]
-	# print(question)
+	#print(question)
 	feature, comparison, value = question.split()
 
 	# ask question
 	# float(value) as feature is string
 	if example[feature] <= float(value):
 	# if str(example[feature]) == value:
+
 		ans = tree[question][0]
 	else:
 		ans = tree[question][1]
