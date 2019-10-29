@@ -206,3 +206,16 @@ def calc_acc(df, tree):
 
 	return accuracy
 
+
+### not for decision tree but to print variables/metrics when asking ###
+
+def print_met(rand, bs, depth, min_samples, trees, multiBool, multiPred):
+	print('Decision Tree Depth:', depth)
+	print('Minimum Samples for Decision Tree:', min_samples)
+	print('---')
+	print('# of Trees in Random Forest:', trees)
+	print('Random Element for Random Forest:', rand)
+	print('Bootstrap Number:', bs)
+	print('---')
+	print('Multithreading for Random Forest:', multiBool)
+	print('Multithreading for Prediction:', multiPred)
